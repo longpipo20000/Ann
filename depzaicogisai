@@ -1,0 +1,197 @@
+getgenv().Toggle_G = false
+getgenv().Creator = 'https://discord.gg/B3HqPPzFYr - HalloweenGaster'
+
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
+local moveTime = 0.35
+
+local function CreateToggleUI()
+    local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+    
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "Ann_ToggleUI"
+    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    ScreenGui.Parent = playerGui
+
+    -- Main Frame (Bé hơn: 250x60)
+    local MainFrame = Instance.new("Frame")
+    MainFrame.Name = "MainFrame"
+    MainFrame.Size = UDim2.new(0, 250, 0, 60) 
+    MainFrame.Position = UDim2.new(0.5, -125, 0.5, -100) 
+    MainFrame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
+    MainFrame.BackgroundTransparency = 0
+    MainFrame.BorderSizePixel = 0
+    MainFrame.ClipsDescendants = true
+    MainFrame.Parent = ScreenGui
+
+    -- UI Corner (Bo góc)
+    local UICorner = Instance.new("UICorner")
+    UICorner.CornerRadius = UDim.new(0, 8)
+    UICorner.Parent = MainFrame
+
+    -- UI Stroke (Viền ngoài)
+    local UIStroke = Instance.new("UIStroke")
+    UIStroke.Thickness = 2
+    UIStroke.Color = Color3.new(1, 0, 0) -- Đỏ (Ban đầu OFF)
+    UIStroke.LineJoinMode = Enum.LineJoinMode.Round
+    UIStroke.Name = "ToggleStroke"
+    UIStroke.Parent = MainFrame
+
+    -- Tiêu đề chính: Made by Ann
+    local TitleLabel = Instance.new("TextLabel")
+    TitleLabel.Name = "TitleLabel"
+    TitleLabel.Size = UDim2.new(1, 0, 0.6, 0)
+    TitleLabel.Position = UDim2.new(0, 0, 0, 0)
+    TitleLabel.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.BorderSizePixel = 0
+    TitleLabel.Font = Enum.Font.FredokaOne
+    TitleLabel.TextColor3 = Color3.new(1, 1, 1)
+    TitleLabel.TextSize = 22
+    TitleLabel.Text = "Made by Ann"
+    TitleLabel.Parent = MainFrame
+
+    -- Dòng chữ phụ: Bấm G để kích hoạt + Trạng thái
+    local StatusLabel = Instance.new("TextLabel")
+    StatusLabel.Name = "StatusLabel"
+    StatusLabel.Size = UDim2.new(1, 0, 0.4, 0)
+    StatusLabel.Position = UDim2.new(0, 0, 0.6, 0)
+    StatusLabel.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
+    StatusLabel.BackgroundTransparency = 1
+    StatusLabel.BorderSizePixel = 0
+    StatusLabel.Font = Enum.Font.SourceSans
+    StatusLabel.TextColor3 = Color3.new(1, 0, 0)
+    StatusLabel.TextSize = 14
+    StatusLabel.Text = "Bấm G để kích hoạt - Trạng thái: OFF"
+    StatusLabel.Parent = MainFrame
+    
+    return MainFrame, StatusLabel
+end
+
+local MainFrame, StatusLabel = CreateToggleUI()
+local UIStroke = MainFrame:FindFirstChild("ToggleStroke")
+
+local function makeDraggable(frame)
+    local dragging
+    local dragStart
+    local startPos
+
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    frame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            if dragging then
+                local delta = input.Position - dragStart
+                local newX = startPos.X.Scale + delta.X / frame.Parent.AbsoluteSize.X
+                local newY = startPos.Y.Scale + delta.Y / frame.Parent.AbsoluteSize.Y
+                
+                frame.Position = UDim2.new(newX, 0, newY, 0)
+            end
+        end
+    end)
+end
+
+makeDraggable(MainFrame)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+    if input.KeyCode == Enum.KeyCode.G and not gameProcessedEvent then
+        getgenv().Toggle_G = not getgenv().Toggle_G
+        
+        local status = getgenv().Toggle_G
+        local statusText = status and "ON" or "OFF"
+        local statusColor = status and Color3.new(0, 1, 0) or Color3.new(1, 0, 0)
+
+        StatusLabel.Text = "Bấm G để kích hoạt - Trạng thái: " .. statusText
+        StatusLabel.TextColor3 = statusColor
+        UIStroke.Color = statusColor
+        
+        print("Toggles Script Status: " .. statusText)
+    end
+end)
+
+local function runScriptOne()
+    if getgenv().Creator == 'https://discord.gg/B3HqPPzFYr - HalloweenGaster' then
+        sethiddenproperty(game.Players.LocalPlayer, "SimulationRadius", 112412400000)
+        sethiddenproperty(game.Players.LocalPlayer, "MaxSimulationRadius", 112412400000)
+        for i,d in pairs(game.Workspace:GetDescendants()) do
+            if d.ClassName == 'Humanoid' and d.Parent.Name ~= game.Players.LocalPlayer.Name then
+                d.Health = 0
+            end
+        end
+    end
+end
+
+local function tweenBehind(npc)
+    local character = LocalPlayer.Character
+    if not character then return end
+
+    local root = character:FindFirstChild("HumanoidRootPart")
+    local enemyRoot = npc:FindFirstChild("HumanoidRootPart")
+    if not root or not enemyRoot then return end
+    
+    local targetCFrame = enemyRoot.CFrame * CFrame.new(0, 0, 7)
+
+    local tween = TweenService:Create(
+        root,
+        TweenInfo.new(
+            moveTime,
+            Enum.EasingStyle.Circular,
+            Enum.EasingDirection.Out
+        ),
+        {CFrame = targetCFrame}
+    )
+    tween:Play()
+end
+
+local function getNearestMob()
+    local nearest
+    local shortest = math.huge
+    local character = LocalPlayer.Character
+    if not character then return end
+
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    
+    local mobContainer = workspace:FindFirstChild("Mobs")
+    if not mobContainer then return end
+
+    for _, mob in pairs(mobContainer:GetChildren()) do
+        local mobRoot = mob:FindFirstChild("HumanoidRootPart")
+        if mobRoot and mob.Name ~= LocalPlayer.Name then 
+            local dist = (mobRoot.Position - root.Position).Magnitude
+            if dist < shortest then
+                shortest = dist
+                nearest = mob
+            end
+        end
+    end
+
+    return nearest
+end
+
+local function runScriptTwo()
+    local mob = getNearestMob()
+    if mob then
+        tweenBehind(mob)
+    end
+end
+
+while task.wait(0.2) do
+    if getgenv().Toggle_G then
+        runScriptOne()
+        runScriptTwo()
+    end
+end
