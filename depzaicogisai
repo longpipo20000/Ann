@@ -1,7 +1,7 @@
 -- ==============================================================================
 --                                  CÀI ĐẶT CHUNG
 -- ==============================================================================
--- Chỉ khởi tạo giá trị mặc định nếu chưa từng chạy (để giữ trạng thái khi Re-execute)
+-- Giữ trạng thái Bật/Tắt nếu script chạy lại
 if getgenv().Toggle_G == nil then getgenv().Toggle_G = false end
 if getgenv().Toggle_H == nil then getgenv().Toggle_H = false end
 
@@ -16,16 +16,19 @@ local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 local moveTime = 0.3
 
--- CẤU HÌNH THỜI GIAN MỚI
-local RUN_DURATION = 4.0  -- Tổng thời gian 1 chu kỳ (3s chờ + 1s skill)
-local SKILL_DELAY = 3.0   -- Thời gian chờ dịch chuyển xong mới dùng skill
+-- CẤU HÌNH THỜI GIAN (GIỮ NGUYÊN NHƯ BẠN YÊU CẦU)
+local RUN_DURATION = 4.0  
+local SKILL_DELAY = 3.0   
 local TOOL_NAME = "Spinning Lariat" 
 
 local isTeleportingActive = false 
 local LastMobName = nil           
 
--- Biến lưu trữ UI
-local MainFrame, StatusLabel_G, StatusLabel_H, UIStroke, LastUIPosition 
+-- Biến lưu trữ UI & Vị trí (Dùng biến global tạm để không mất khi reset)
+local MainFrame, StatusLabel_G, StatusLabel_H, UIStroke
+-- Sử dụng getgenv để lưu vị trí, đảm bảo không mất dù có chuyện gì xảy ra
+if not getgenv().Ann_LastUIPos then getgenv().Ann_LastUIPos = nil end
+
 local isDragging, dragInput, dragStart, startPos
 local Mouse = LocalPlayer:GetMouse() 
 
@@ -151,7 +154,7 @@ local function getNearestMob()
 end
 
 -- ==============================================================================
---                                  GIAO DIỆN UI
+--                                  GIAO DIỆN UI (ĐÃ SỬA LỖI VỊ TRÍ)
 -- ==============================================================================
 
 local function updateInput(input)
@@ -199,12 +202,16 @@ local function CreateToggleUI()
     MainFrame.Name = "MainFrame"
     MainFrame.Size = UDim2.new(0, 260, 0, 90) 
     
-    if LastUIPosition then MainFrame.Position = LastUIPosition else MainFrame.Position = UDim2.new(0.5, -130, 0.5, -100) end
+    -- FIX: Sử dụng vị trí đã lưu (getgenv)
+    if getgenv().Ann_LastUIPos then 
+        MainFrame.Position = getgenv().Ann_LastUIPos 
+    else 
+        MainFrame.Position = UDim2.new(0.5, -130, 0.5, -100) 
+    end
     
+    -- FIX: Luôn cập nhật vị trí mới nhất khi khung di chuyển
     MainFrame:GetPropertyChangedSignal("Position"):Connect(function() 
-        if not isDragging then
-            LastUIPosition = MainFrame.Position 
-        end
+        getgenv().Ann_LastUIPos = MainFrame.Position 
     end)
 
     MainFrame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
@@ -213,8 +220,6 @@ local function CreateToggleUI()
     
     UIStroke = Instance.new("UIStroke", MainFrame)
     UIStroke.Thickness = 2
-    
-    -- FIX: Cập nhật màu Stroke theo trạng thái hiện tại của G
     UIStroke.Color = getgenv().Toggle_G and Color3.new(0, 1, 0) or Color3.new(1, 0, 0)
 
     local Title = Instance.new("TextLabel", MainFrame)
@@ -225,7 +230,7 @@ local function CreateToggleUI()
     Title.Font = Enum.Font.FredokaOne
     Title.TextSize = 20
 
-    -- Label cho Auto Farm (G) - FIX: Lấy trạng thái hiện tại
+    -- Label cho Auto Farm (G)
     StatusLabel_G = Instance.new("TextLabel", MainFrame)
     StatusLabel_G.Size = UDim2.new(1, 0, 0.3, 0)
     StatusLabel_G.Position = UDim2.new(0, 0, 0.4, 0)
@@ -241,7 +246,7 @@ local function CreateToggleUI()
         StatusLabel_G.TextColor3 = Color3.new(1, 0, 0)
     end
 
-    -- Label cho Auto Next Stage (H) - FIX: Lấy trạng thái hiện tại
+    -- Label cho Auto Next Stage (H)
     StatusLabel_H = Instance.new("TextLabel", MainFrame)
     StatusLabel_H.Size = UDim2.new(1, 0, 0.3, 0)
     StatusLabel_H.Position = UDim2.new(0, 0, 0.7, 0)
@@ -277,7 +282,7 @@ UserInputService.InputBegan:Connect(function(input, gp)
             StatusLabel_G.TextColor3 = color
         end
         if UIStroke then
-            UIStroke.Color = color -- Viền đổi màu theo Auto Farm
+            UIStroke.Color = color
         end
     end
 
@@ -314,7 +319,7 @@ while task.wait(0.2) do
                 LastMobName = mob.Name 
                 
                 task.spawn(function()
-                    -- Giai đoạn 1: Chờ 3.0 giây
+                    -- Giai đoạn 1: Chờ 3.0 giây sau khi dịch chuyển
                     local startTime = tick()
                     while tick() - startTime < SKILL_DELAY do
                         if not isTeleportingActive or not getgenv().Toggle_G then return end
