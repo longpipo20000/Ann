@@ -1,45 +1,125 @@
 getgenv().Toggle_G = false
-getgenv().Creator = 'https://discord.gg/B3HqPPzFYr - HalloweenGaster'
+getgenv().Creator = 'Andeptrai'
 
 local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService") 
 local LocalPlayer = Players.LocalPlayer
 local moveTime = 0.35
 
+local RUN_DURATION = 6.5 -- Chu kỳ dịch chuyển
+local CORRECT_TOOL_NAME = "Spinning Lariat" -- Tên công cụ đã được xác nhận (có khoảng trắng)
+
+local isTeleportingActive = false 
+local LastMobName = nil           
+
+-- Biến UI và trạng thái kéo thả
+local MainFrame 
+local StatusLabel 
+local UIStroke 
+local LastUIPosition 
+
+local isDragging = false
+local dragOffset = Vector2.new(0, 0)
+local Mouse = LocalPlayer:GetMouse() 
+
+-- =========================================================================
+-- CHỨC NĂNG: TRANG BỊ VÀ KÍCH HOẠT TOOL 5 LẦN
+-- =========================================================================
+local function activateSpinningLariat()
+    local character = LocalPlayer.Character
+    local humanoid = character and character:FindFirstChild("Humanoid")
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+
+    if not humanoid then return end
+
+    local tool = character:FindFirstChild(CORRECT_TOOL_NAME) 
+
+    -- 1. Nếu chưa được trang bị, tìm trong Backpack và Equip
+    if not tool or not tool:IsA("Tool") then
+        if backpack then
+            local toolInBackpack = backpack:FindFirstChild(CORRECT_TOOL_NAME)
+            if toolInBackpack and toolInBackpack:IsA("Tool") then
+                humanoid:EquipTool(toolInBackpack)
+                task.wait(0.1) -- Đợi quá trình trang bị hoàn tất
+                tool = character:FindFirstChild(CORRECT_TOOL_NAME) -- Lấy lại tham chiếu mới
+                print("Tool Action: Đã trang bị Spinning Lariat.")
+            end
+        end
+    end
+
+    -- 2. Nếu tool đã được trang bị (hoặc mới được Equip), thì kích hoạt 5 lần
+    if tool and tool:IsA("Tool") then
+        for i = 1, 5 do
+            tool:Activate() -- Kích hoạt trực tiếp hàm Activate()
+            task.wait(0.05)
+        end
+        print("Tool Action: Activated Spinning Lariat 5 times.")
+    else
+        warn("Tool Action: Công cụ '"..CORRECT_TOOL_NAME.."' không được trang bị. Bỏ qua kích hoạt.")
+    end
+end
+-- =========================================================================
+
+-- HÀM KÉO THẢ (Chỉ thiết lập trạng thái)
+local function makeDraggable(frame)
+    frame.InputBegan:Connect(function(input, gameProcessedEvent)
+        if gameProcessedEvent then return end
+
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            isDragging = true
+            dragOffset = Vector2.new(Mouse.X, Mouse.Y) - frame.AbsolutePosition
+        end
+    end)
+end
+
+-- HÀM TẠO UI 
 local function CreateToggleUI()
-    local playerGui = LocalPlayer:WaitForChild("PlayerGui")
-    
+    local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+    if not playerGui then return end 
+
+    if playerGui:FindFirstChild("Ann_ToggleUI") then
+        playerGui:FindFirstChild("Ann_ToggleUI"):Destroy()
+    end
+
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "Ann_ToggleUI"
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     ScreenGui.Parent = playerGui
 
-    -- Main Frame (Bé hơn: 250x60)
-    local MainFrame = Instance.new("Frame")
+    MainFrame = Instance.new("Frame")
     MainFrame.Name = "MainFrame"
     MainFrame.Size = UDim2.new(0, 250, 0, 60) 
-    MainFrame.Position = UDim2.new(0.5, -125, 0.5, -100) 
+    
+    if LastUIPosition then
+        MainFrame.Position = LastUIPosition
+    else
+        MainFrame.Position = UDim2.new(0.5, -125, 0.5, -100)
+    end
+    
+    MainFrame:GetPropertyChangedSignal("Position"):Connect(function() 
+        LastUIPosition = MainFrame.Position 
+    end) 
+
     MainFrame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
-    MainFrame.BackgroundTransparency = 0
+    MainFrame.BackgroundTransparency = 0.1
     MainFrame.BorderSizePixel = 0
     MainFrame.ClipsDescendants = true
     MainFrame.Parent = ScreenGui
 
-    -- UI Corner (Bo góc)
     local UICorner = Instance.new("UICorner")
     UICorner.CornerRadius = UDim.new(0, 8)
     UICorner.Parent = MainFrame
 
-    -- UI Stroke (Viền ngoài)
-    local UIStroke = Instance.new("UIStroke")
+    UIStroke = Instance.new("UIStroke")
     UIStroke.Thickness = 2
-    UIStroke.Color = Color3.new(1, 0, 0) -- Đỏ (Ban đầu OFF)
+    local statusColor = getgenv().Toggle_G and Color3.new(0, 1, 0) or Color3.new(1, 0, 0)
+    UIStroke.Color = statusColor
     UIStroke.LineJoinMode = Enum.LineJoinMode.Round
     UIStroke.Name = "ToggleStroke"
     UIStroke.Parent = MainFrame
 
-    -- Tiêu đề chính: Made by Ann
     local TitleLabel = Instance.new("TextLabel")
     TitleLabel.Name = "TitleLabel"
     TitleLabel.Size = UDim2.new(1, 0, 0.6, 0)
@@ -50,11 +130,11 @@ local function CreateToggleUI()
     TitleLabel.Font = Enum.Font.FredokaOne
     TitleLabel.TextColor3 = Color3.new(1, 1, 1)
     TitleLabel.TextSize = 22
-    TitleLabel.Text = "Made by Ann"
+    TitleLabel.ZIndex = 2
+    TitleLabel.Text = "Made by Ann" 
     TitleLabel.Parent = MainFrame
 
-    -- Dòng chữ phụ: Bấm G để kích hoạt + Trạng thái
-    local StatusLabel = Instance.new("TextLabel")
+    StatusLabel = Instance.new("TextLabel")
     StatusLabel.Name = "StatusLabel"
     StatusLabel.Size = UDim2.new(1, 0, 0.4, 0)
     StatusLabel.Position = UDim2.new(0, 0, 0.6, 0)
@@ -62,49 +142,40 @@ local function CreateToggleUI()
     StatusLabel.BackgroundTransparency = 1
     StatusLabel.BorderSizePixel = 0
     StatusLabel.Font = Enum.Font.SourceSans
-    StatusLabel.TextColor3 = Color3.new(1, 0, 0)
+    
+    local statusText = getgenv().Toggle_G and "ON" or "OFF"
+    
+    StatusLabel.TextColor3 = statusColor
     StatusLabel.TextSize = 14
-    StatusLabel.Text = "Bấm G để kích hoạt - Trạng thái: OFF"
+    StatusLabel.ZIndex = 2
+    StatusLabel.Text = "Bấm G để kích hoạt - Trạng thái: " .. statusText
     StatusLabel.Parent = MainFrame
     
-    return MainFrame, StatusLabel
+    makeDraggable(MainFrame)
 end
 
-local MainFrame, StatusLabel = CreateToggleUI()
-local UIStroke = MainFrame:FindFirstChild("ToggleStroke")
+-- LOGIC KÉO THẢ CHÍNH
+RunService.RenderStepped:Connect(function()
+    if isDragging and MainFrame then
+        local newAbsolutePos = Vector2.new(Mouse.X, Mouse.Y) - dragOffset
+        MainFrame.Position = UDim2.new(0, newAbsolutePos.X, 0, newAbsolutePos.Y)
+    end
+end)
 
-local function makeDraggable(frame)
-    local dragging
-    local dragStart
-    local startPos
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        isDragging = false
+    end
+end)
 
-    frame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = frame.Position
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
-        end
-    end)
+-- LOGIC FIX UI RESET
+LocalPlayer.CharacterAdded:Connect(function()
+    LocalPlayer:WaitForChild("PlayerGui")
+    CreateToggleUI()
+end)
 
-    frame.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            if dragging then
-                local delta = input.Position - dragStart
-                local newX = startPos.X.Scale + delta.X / frame.Parent.AbsoluteSize.X
-                local newY = startPos.Y.Scale + delta.Y / frame.Parent.AbsoluteSize.Y
-                
-                frame.Position = UDim2.new(newX, 0, newY, 0)
-            end
-        end
-    end)
-end
-
-makeDraggable(MainFrame)
+-- Tạo UI lần đầu khi script chạy
+CreateToggleUI()
 
 UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
     if input.KeyCode == Enum.KeyCode.G and not gameProcessedEvent then
@@ -114,22 +185,22 @@ UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
         local statusText = status and "ON" or "OFF"
         local statusColor = status and Color3.new(0, 1, 0) or Color3.new(1, 0, 0)
 
-        StatusLabel.Text = "Bấm G để kích hoạt - Trạng thái: " .. statusText
-        StatusLabel.TextColor3 = statusColor
-        UIStroke.Color = statusColor
+        if StatusLabel and UIStroke then
+            StatusLabel.Text = "Bấm G để kích hoạt - Trạng thái: " .. statusText
+            StatusLabel.TextColor3 = statusColor
+            UIStroke.Color = statusColor
+        end
         
         print("Toggles Script Status: " .. statusText)
     end
 end)
 
 local function runScriptOne()
-    if getgenv().Creator == 'https://discord.gg/B3HqPPzFYr - HalloweenGaster' then
-        sethiddenproperty(game.Players.LocalPlayer, "SimulationRadius", 112412400000)
-        sethiddenproperty(game.Players.LocalPlayer, "MaxSimulationRadius", 112412400000)
-        for i,d in pairs(game.Workspace:GetDescendants()) do
-            if d.ClassName == 'Humanoid' and d.Parent.Name ~= game.Players.LocalPlayer.Name then
-                d.Health = 0
-            end
+    sethiddenproperty(game.Players.LocalPlayer, "SimulationRadius", 112412400000)
+    sethiddenproperty(game.Players.LocalPlayer, "MaxSimulationRadius", 112412400000)
+    for i,d in pairs(game.Workspace:GetDescendants()) do
+        if d.ClassName == 'Humanoid' and d.Parent.Name ~= game.Players.LocalPlayer.Name then
+            d.Health = 0
         end
     end
 end
@@ -182,16 +253,41 @@ local function getNearestMob()
     return nearest
 end
 
-local function runScriptTwo()
-    local mob = getNearestMob()
-    if mob then
-        tweenBehind(mob)
-    end
-end
-
 while task.wait(0.2) do
     if getgenv().Toggle_G then
         runScriptOne()
-        runScriptTwo()
+        
+        if isTeleportingActive then
+            local mob = getNearestMob()
+            if mob then
+                LastMobName = mob.Name 
+                tweenBehind(mob) 
+            else
+                isTeleportingActive = false
+                LastMobName = nil
+            end
+        
+        else
+            local mob = getNearestMob()
+            
+            if mob and mob.Name ~= LastMobName then
+                isTeleportingActive = true
+                tweenBehind(mob) 
+                
+                task.spawn(function()
+                    -- ĐÃ CHỈNH SỬA: Chờ 5.5 giây trước khi kích hoạt tấn công
+                    task.wait(5.5) 
+                    
+                    if getgenv().Toggle_G then 
+                        activateSpinningLariat() -- Gọi hàm kích hoạt
+                    end
+                    
+                    -- ĐÃ CHỈNH SỬA: Chờ thời gian còn lại (6.5 - 5.5 = 1.0 giây)
+                    task.wait(RUN_DURATION - 5.5) 
+                    
+                    isTeleportingActive = false 
+                end)
+            end
+        end
     end
 end
