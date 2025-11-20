@@ -6,7 +6,7 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService") 
 local LocalPlayer = Players.LocalPlayer
-local moveTime = 0.1
+local moveTime = 0.35
 
 local RUN_DURATION = 6.5 -- Chu kỳ dịch chuyển
 local CORRECT_TOOL_NAME = "Spinning Lariat" -- Tên công cụ đã được xác nhận (có khoảng trắng)
@@ -213,7 +213,7 @@ local function tweenBehind(npc)
     local enemyRoot = npc:FindFirstChild("HumanoidRootPart")
     if not root or not enemyRoot then return end
     
-    local targetCFrame = enemyRoot.CFrame * CFrame.new(1, 0, 1)
+    local targetCFrame = enemyRoot.CFrame * CFrame.new(0, 0, 1)
 
     local tween = TweenService:Create(
         root,
