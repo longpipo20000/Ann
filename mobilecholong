@@ -23,7 +23,7 @@ local TOOL_NAME = "Spinning Lariat"
 local isTeleportingActive = false 
 local LastMobName = nil           
 
--- Biến lưu trữ UI
+-- Biến UI
 local MainFrame, Btn_Farm, Btn_NextStage, UIStroke
 if not getgenv().Ann_LastUIPos then getgenv().Ann_LastUIPos = nil end
 
@@ -31,7 +31,7 @@ local isDragging, dragInput, dragStart, startPos
 local Mouse = LocalPlayer:GetMouse() 
 
 -- ==============================================================================
---                        CHỨC NĂNG 1: AUTO NEXT STAGE (PHÍM H)
+--                        CHỨC NĂNG 1: AUTO NEXT STAGE
 -- ==============================================================================
 local function pressButtonViaKeyboard(button)
     if not button or not button.Visible then return end
@@ -55,18 +55,12 @@ task.spawn(function()
             if playerGui then
                 pcall(function()
                     local backBtn = playerGui.TrialResult.Frame.Container.Back.Back.Button
-                    if backBtn and backBtn.Visible then
-                        pressButtonViaKeyboard(backBtn)
-                    end
+                    if backBtn and backBtn.Visible then pressButtonViaKeyboard(backBtn) end
                 end)
-
                 pcall(function()
                     local startFrame = playerGui.TrialUI.Frame.Container.Container.Right.Start
                     local startBtn = startFrame:FindFirstChild("Button") or startFrame:FindFirstChild("TextButton")
-                    
-                    if startBtn and startBtn.Visible then
-                        pressButtonViaKeyboard(startBtn)
-                    end
+                    if startBtn and startBtn.Visible then pressButtonViaKeyboard(startBtn) end
                 end)
             end
         end
@@ -74,33 +68,23 @@ task.spawn(function()
 end)
 
 -- ==============================================================================
---                        CHỨC NĂNG 2: AUTO FARM (PHÍM G)
+--                        CHỨC NĂNG 2: AUTO FARM
 -- ==============================================================================
 local function activateSpinningLariat()
     local character = LocalPlayer.Character
     local humanoid = character and character:FindFirstChild("Humanoid")
     local backpack = LocalPlayer:FindFirstChild("Backpack")
-
     if not humanoid then return end
 
     local tool = character:FindFirstChild(TOOL_NAME) 
-
     if not tool or not tool:IsA("Tool") then
         if backpack then
             local toolInBackpack = backpack:FindFirstChild(TOOL_NAME)
-            if toolInBackpack and toolInBackpack:IsA("Tool") then
-                humanoid:EquipTool(toolInBackpack)
-                task.wait(0.1) 
-                tool = character:FindFirstChild(TOOL_NAME) 
-            end
+            if toolInBackpack then humanoid:EquipTool(toolInBackpack); task.wait(0.1); tool = character:FindFirstChild(TOOL_NAME) end
         end
     end
-
     if tool and tool:IsA("Tool") then
-        for i = 1, 5 do
-            tool:Activate() 
-            task.wait(0.05)
-        end
+        for i = 1, 5 do tool:Activate(); task.wait(0.05) end
     end
 end
 
@@ -108,9 +92,7 @@ local function runKillAura()
     sethiddenproperty(LocalPlayer, "SimulationRadius", 112412400000)
     sethiddenproperty(LocalPlayer, "MaxSimulationRadius", 112412400000)
     for _, d in pairs(game.Workspace:GetDescendants()) do
-        if d.ClassName == 'Humanoid' and d.Parent.Name ~= LocalPlayer.Name then
-            d.Health = 0
-        end
+        if d.ClassName == 'Humanoid' and d.Parent.Name ~= LocalPlayer.Name then d.Health = 0 end
     end
 end
 
@@ -121,50 +103,42 @@ local function tweenBehind(npc)
     local enemyRoot = npc:FindFirstChild("HumanoidRootPart")
     if not root or not enemyRoot then return end
     
-    local targetCFrame = enemyRoot.CFrame * CFrame.new(0, 0, 1) 
+    local targetCFrame = enemyRoot.CFrame * CFrame.new(0, 0, 2) 
     local tween = TweenService:Create(root, TweenInfo.new(moveTime, Enum.EasingStyle.Circular, Enum.EasingDirection.Out), {CFrame = targetCFrame})
     tween:Play()
 end
 
 local function getNearestMob()
-    local nearest = nil
-    local shortest = math.huge
-    local character = LocalPlayer.Character
-    if not character then return nil end
-    local root = character:FindFirstChild("HumanoidRootPart")
-    if not root then return nil end
-    
+    local nearest, shortest = nil, math.huge
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return nil end
     local mobContainer = workspace:FindFirstChild("Mobs")
     if not mobContainer then return nil end
-
     for _, mob in pairs(mobContainer:GetChildren()) do
         local mobRoot = mob:FindFirstChild("HumanoidRootPart")
         if mobRoot and mob.Name ~= LocalPlayer.Name then 
-            local dist = (mobRoot.Position - root.Position).Magnitude
-            if dist < shortest then
-                shortest = dist
-                nearest = mob
-            end
+            local dist = (mobRoot.Position - char.HumanoidRootPart.Position).Magnitude
+            if dist < shortest then shortest = dist; nearest = mob end
         end
     end
     return nearest
 end
 
 -- ==============================================================================
---                                  GIAO DIỆN UI (MOBILE FRIENDLY)
+--                                  GIAO DIỆN UI (MOBILE UPDATE)
 -- ==============================================================================
-
--- Hàm cập nhật hiển thị UI
 local function UpdateUI()
-    if not Btn_Farm or not Btn_NextStage or not UIStroke then return end
-
+    if not Btn_Farm or not Btn_NextStage then return end
+    
     -- Cập nhật nút Farm
     if getgenv().Toggle_G then
         Btn_Farm.Text = "[G] Auto Farm: ON"
         Btn_Farm.TextColor3 = Color3.new(0, 1, 0)
+        UIStroke.Color = Color3.new(0, 1, 0)
     else
         Btn_Farm.Text = "[G] Auto Farm: OFF"
         Btn_Farm.TextColor3 = Color3.new(1, 0, 0)
+        UIStroke.Color = Color3.new(1, 0, 0)
     end
 
     -- Cập nhật nút Next Stage
@@ -175,9 +149,6 @@ local function UpdateUI()
         Btn_NextStage.Text = "[H] Auto Next Stage: OFF"
         Btn_NextStage.TextColor3 = Color3.new(1, 0, 0)
     end
-    
-    -- Cập nhật màu viền theo trạng thái Farm
-    UIStroke.Color = getgenv().Toggle_G and Color3.new(0, 1, 0) or Color3.new(1, 0, 0)
 end
 
 local function updateInput(input)
@@ -224,18 +195,12 @@ local function CreateToggleUI()
     MainFrame = Instance.new("Frame", ScreenGui)
     MainFrame.Name = "MainFrame"
     MainFrame.Size = UDim2.new(0, 260, 0, 90) 
-    MainFrame.Active = true -- Quan trọng cho Mobile để nhận Input
+    MainFrame.Active = true -- Quan trọng cho Mobile để nhận touch
     
-    if getgenv().Ann_LastUIPos then 
-        MainFrame.Position = getgenv().Ann_LastUIPos 
-    else 
-        MainFrame.Position = UDim2.new(0.5, -130, 0.5, -100) 
-    end
+    if getgenv().Ann_LastUIPos then MainFrame.Position = getgenv().Ann_LastUIPos else MainFrame.Position = UDim2.new(0.5, -130, 0.5, -100) end
     
     MainFrame:GetPropertyChangedSignal("Position"):Connect(function() 
-        if not isDragging then
-            getgenv().Ann_LastUIPos = MainFrame.Position 
-        end
+        if not isDragging then getgenv().Ann_LastUIPos = MainFrame.Position end 
     end)
 
     MainFrame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
@@ -244,7 +209,7 @@ local function CreateToggleUI()
     
     UIStroke = Instance.new("UIStroke", MainFrame)
     UIStroke.Thickness = 2
-
+    
     local Title = Instance.new("TextLabel", MainFrame)
     Title.Text = "Made by Ann"
     Title.Size = UDim2.new(1, 0, 0.4, 0)
@@ -253,34 +218,32 @@ local function CreateToggleUI()
     Title.Font = Enum.Font.FredokaOne
     Title.TextSize = 20
 
-    -- NÚT BẤM FARM (Thay vì Label)
+    -- NÚT BẤM: AUTO FARM
     Btn_Farm = Instance.new("TextButton", MainFrame)
     Btn_Farm.Size = UDim2.new(1, 0, 0.3, 0)
     Btn_Farm.Position = UDim2.new(0, 0, 0.4, 0)
     Btn_Farm.BackgroundTransparency = 1
     Btn_Farm.Font = Enum.Font.SourceSansBold
     Btn_Farm.TextSize = 16
-    
     Btn_Farm.MouseButton1Click:Connect(function()
         getgenv().Toggle_G = not getgenv().Toggle_G
         UpdateUI()
         if not getgenv().Toggle_G then GuiService.SelectedObject = nil end
     end)
 
-    -- NÚT BẤM NEXT STAGE (Thay vì Label)
+    -- NÚT BẤM: AUTO NEXT STAGE
     Btn_NextStage = Instance.new("TextButton", MainFrame)
     Btn_NextStage.Size = UDim2.new(1, 0, 0.3, 0)
     Btn_NextStage.Position = UDim2.new(0, 0, 0.7, 0)
     Btn_NextStage.BackgroundTransparency = 1
     Btn_NextStage.Font = Enum.Font.SourceSansBold
     Btn_NextStage.TextSize = 16
-    
     Btn_NextStage.MouseButton1Click:Connect(function()
         getgenv().Toggle_H = not getgenv().Toggle_H
         UpdateUI()
     end)
 
-    UpdateUI() -- Cập nhật lần đầu
+    UpdateUI() -- Cập nhật trạng thái ban đầu
     makeDraggable(MainFrame)
 end
 
@@ -288,60 +251,37 @@ LocalPlayer.CharacterAdded:Connect(function() task.wait(1); CreateToggleUI() end
 CreateToggleUI()
 
 -- ==============================================================================
---                            XỬ LÝ PHÍM TẮT (PC Support)
+--                            XỬ LÝ PHÍM TẮT (Hỗ trợ cả PC)
 -- ==============================================================================
 UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
-
     if input.KeyCode == Enum.KeyCode.G then
         getgenv().Toggle_G = not getgenv().Toggle_G
         UpdateUI()
         if not getgenv().Toggle_G then GuiService.SelectedObject = nil end
     end
-
     if input.KeyCode == Enum.KeyCode.H then
         getgenv().Toggle_H = not getgenv().Toggle_H
         UpdateUI()
     end
 end)
 
--- ==============================================================================
---                            VÒNG LẶP FARM (MAIN LOOP)
--- ==============================================================================
+-- MAIN LOOP
 while task.wait(0.2) do
     if getgenv().Toggle_G then
         runKillAura()
-        
         if isTeleportingActive then
             local mob = getNearestMob()
-            if mob and mob.Name == LastMobName then
-                tweenBehind(mob)
-            else
-                isTeleportingActive = false
-                LastMobName = nil
-            end
+            if mob and mob.Name == LastMobName then tweenBehind(mob) else isTeleportingActive = false; LastMobName = nil end
         else
             local mob = getNearestMob()
             if mob and mob.Name ~= LastMobName then
-                isTeleportingActive = true
-                tweenBehind(mob)
-                LastMobName = mob.Name 
-                
+                isTeleportingActive = true; tweenBehind(mob); LastMobName = mob.Name
                 task.spawn(function()
-                    local startTime = tick()
-                    while tick() - startTime < SKILL_DELAY do
-                        if not isTeleportingActive or not getgenv().Toggle_G then return end
-                        task.wait(0.1)
-                    end
-
+                    local s = tick(); while tick()-s < SKILL_DELAY do if not isTeleportingActive or not getgenv().Toggle_G then return end task.wait(0.1) end
                     if getgenv().Toggle_G then activateSpinningLariat() end
-                    
-                    local remaining = RUN_DURATION - SKILL_DELAY
-                    if remaining > 0 then
-                        task.wait(remaining)
-                    end
-                    
-                    isTeleportingActive = false 
+                    local r = RUN_DURATION - SKILL_DELAY; if r > 0 then task.wait(r) end
+                    isTeleportingActive = false
                 end)
             end
         end
