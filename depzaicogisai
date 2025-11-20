@@ -213,7 +213,7 @@ local function tweenBehind(npc)
     local enemyRoot = npc:FindFirstChild("HumanoidRootPart")
     if not root or not enemyRoot then return end
     
-    local targetCFrame = enemyRoot.CFrame * CFrame.new(0, 0, 7)
+    local targetCFrame = enemyRoot.CFrame * CFrame.new(0, 0, 1)
 
     local tween = TweenService:Create(
         root,
