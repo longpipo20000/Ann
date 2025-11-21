@@ -20,7 +20,7 @@ local moveTime = 0.3
 local SKILL_DELAY = 3.0   -- Thời gian chờ trước khi đánh
 local SPAM_DURATION = 3.0 -- Thời gian spam chiêu (3s chờ + 3s spam = 6s tổng)
 local TOOL_NAME = "Spinning Lariat" 
-local SEARCH_RADIUS = 150 -- [ĐÃ CHỈNH SỬA] Bán kính quét quái lên 150 studs
+local SEARCH_RADIUS = 500 -- [ĐÃ CHỈNH SỬA] Bán kính quét quái lên 500 studs
 
 local isTeleportingActive = false 
 local LastMobName = nil           
@@ -143,7 +143,7 @@ local function getNearestMob()
         if mobRoot and mob.Name ~= LocalPlayer.Name then 
             local dist = (mobRoot.Position - root.Position).Magnitude
             
-            -- Điều kiện bán kính: <= 150
+            -- Điều kiện bán kính: <= 500
             if dist < shortest and dist <= SEARCH_RADIUS then
                 shortest = dist
                 nearest = mob
