@@ -15,9 +15,10 @@ local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 local moveTime = 0.3
 
--- CẤU HÌNH THỜI GIAN 
-local SKILL_DELAY = 3.0   -- Thời gian chờ trước khi bắt đầu đánh
+-- === CẤU HÌNH THỜI GIAN & PHẠM VI ===
+local SKILL_DELAY = 3.0   -- Thời gian chờ trước khi đánh
 local TOOL_NAME = "Spinning Lariat" 
+local SEARCH_RADIUS = 50  -- ĐÃ CHỈNH: Chỉ tìm quái trong phạm vi 50 studs
 
 local isTeleportingActive = false 
 local LastMobName = nil           
@@ -76,23 +77,19 @@ local function activateSpinningLariat()
 
     if not humanoid then return end
 
-    -- Cơ chế Equip lại nhanh để spam tốt hơn
     local tool = character:FindFirstChild(TOOL_NAME) 
-    
     if not tool then
         if backpack then
             local toolInBackpack = backpack:FindFirstChild(TOOL_NAME)
             if toolInBackpack then
                 humanoid:EquipTool(toolInBackpack)
-                task.wait() -- Chờ siêu ngắn
+                task.wait() 
                 tool = character:FindFirstChild(TOOL_NAME) 
             end
         end
     end
 
-    if tool and tool:IsA("Tool") then
-        tool:Activate()
-    end
+    if tool and tool:IsA("Tool") then tool:Activate() end
 end
 
 local function runKillAura()
@@ -109,7 +106,7 @@ local function tweenBehind(npc)
     local character = LocalPlayer.Character
     if not character then return end
     local root = character:FindFirstChild("HumanoidRootPart")
-    local enemyRoot = npc and npc:FindFirstChild("HumanoidRootPart") -- Thêm check nil
+    local enemyRoot = npc and npc:FindFirstChild("HumanoidRootPart")
     if not root or not enemyRoot then return end
     
     local targetCFrame = enemyRoot.CFrame * CFrame.new(0, 0, 2) 
@@ -117,6 +114,7 @@ local function tweenBehind(npc)
     tween:Play()
 end
 
+-- HÀM TÌM QUÁI (CHECK BÁN KÍNH 50)
 local function getNearestMob()
     local nearest = nil
     local shortest = math.huge
@@ -131,10 +129,12 @@ local function getNearestMob()
     for _, mob in pairs(mobContainer:GetChildren()) do
         local mobRoot = mob:FindFirstChild("HumanoidRootPart")
         local mobHum = mob:FindFirstChild("Humanoid")
-        -- Chỉ tìm quái còn sống (Máu > 0)
+        
         if mobRoot and mobHum and mobHum.Health > 0 and mob.Name ~= LocalPlayer.Name then 
             local dist = (mobRoot.Position - root.Position).Magnitude
-            if dist < shortest then
+            
+            -- Kiểm tra: Khoảng cách phải nhỏ hơn 50 mới chọn
+            if dist < shortest and dist <= SEARCH_RADIUS then
                 shortest = dist
                 nearest = mob
             end
@@ -221,7 +221,7 @@ UserInputService.InputBegan:Connect(function(input, gp)
 end)
 
 -- ==============================================================================
---                            VÒNG LẶP FARM (LOGIC MỚI)
+--                            VÒNG LẶP FARM
 -- ==============================================================================
 while task.wait(0.2) do
     if getgenv().Toggle_G then
@@ -237,44 +237,37 @@ while task.wait(0.2) do
             end
         else
             local mob = getNearestMob()
-            -- Chỉ thực hiện nếu tìm thấy quái và quái đó còn sống
             if mob and mob.Name ~= LastMobName then
                 isTeleportingActive = true
                 tweenBehind(mob)
                 LastMobName = mob.Name 
                 
-                -- Bắt đầu luồng xử lý quái
                 task.spawn(function()
-                    local targetMob = mob -- Khóa mục tiêu (Target Lock)
+                    local targetMob = mob 
                     
-                    -- === GIAI ĐOẠN 1: CHỜ 3 GIÂY ===
+                    -- Giai đoạn 1: Chờ 3 giây
                     local startTime = tick()
                     while tick() - startTime < SKILL_DELAY do
                         if not isTeleportingActive or not getgenv().Toggle_G then return end
-                        
-                        -- Kiểm tra nếu quái chết trong lúc đang chờ -> Dừng chờ ngay
                         if not targetMob or not targetMob.Parent or not targetMob:FindFirstChild("Humanoid") or targetMob.Humanoid.Health <= 0 then
                             isTeleportingActive = false
                             LastMobName = nil
                             return 
                         end
-                        
-                        tweenBehind(targetMob) -- Vẫn bám theo
+                        tweenBehind(targetMob) 
                         task.wait(0.1)
                     end
 
-                    -- === GIAI ĐOẠN 2: SPAM CHIÊU ĐẾN KHI QUÁI CHẾT ===
-                    -- Thay vì dùng thời gian, ta dùng điều kiện While Health > 0
+                    -- Giai đoạn 2: Đánh cho đến khi chết
                     while targetMob and targetMob.Parent and targetMob:FindFirstChild("Humanoid") and targetMob.Humanoid.Health > 0 do
                         if not isTeleportingActive or not getgenv().Toggle_G then break end
                         
-                        activateSpinningLariat() -- Spam chiêu
-                        tweenBehind(targetMob)   -- Bám theo
+                        activateSpinningLariat() 
+                        tweenBehind(targetMob)   
                         
-                        task.wait(0.1) -- Tốc độ spam
+                        task.wait(0.1) 
                     end
                     
-                    -- Quái đã chết, reset biến để tìm con mới ngay lập tức
                     isTeleportingActive = false 
                     LastMobName = nil
                 end)
