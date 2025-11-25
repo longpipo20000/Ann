@@ -6,9 +6,9 @@ if getgenv().Toggle_H == nil then getgenv().Toggle_H = false end
 
 getgenv().Creator = 'Andeptrai'
 
--- [ANTI-CRASH] Tối ưu hóa FPS và Ram để treo lâu không bị văng
+-- [ANTI-CRASH] Tối ưu hóa FPS và Ram
 local RunService = game:GetService("RunService")
-if setfpscap then setfpscap(60) end -- Giới hạn 30 FPS để nhẹ máy
+if setfpscap then setfpscap(60) end 
 game:GetService("Lighting").GlobalShadows = false
 game:GetService("Lighting").FogEnd = 9e9
 settings().Rendering.QualityLevel = "Level01"
@@ -19,12 +19,12 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
-local moveTime = 0
+local moveTime = 0.3 -- Tốc độ bay
 
 -- === CẤU HÌNH THỜI GIAN ===
-local SKILL_DELAY = 3.0     -- Chờ 3s
-local SPAM_DURATION = 3.0   -- Spam 3s
-local STOP_MOVE_TIME = 3.5  -- Dừng bay sau 3.5s
+local SKILL_DELAY = 3.0     -- Thời gian chờ trước khi bắt đầu xoay
+local STOP_MOVE_TIME = 3.5  -- Thời gian dừng dịch chuyển (Sau 3.5s sẽ đứng yên)
+-- LƯU Ý: Không còn dùng SPAM_DURATION nữa vì sẽ đánh đến khi hết quái.
 
 local TOOL_NAME = "Spinning Lariat" 
 local SEARCH_RADIUS = 1000 
@@ -32,7 +32,7 @@ local SEARCH_RADIUS = 1000
 local isTeleportingActive = false 
 local LastMobName = nil   
 local AttackStartTime = 0 
-local activeTween = nil -- [FIX CRASH] Biến lưu tween hiện tại
+local activeTween = nil 
 
 -- Biến UI
 local MainFrame, StatusLabel_G, StatusLabel_H, UIStroke
@@ -75,7 +75,7 @@ task.spawn(function()
 end)
 
 -- ==============================================================================
---                        CHỨC NĂNG 2: AUTO FARM (TỐI ƯU HÓA)
+--                        CHỨC NĂNG 2: AUTO FARM (LOGIC MỚI)
 -- ==============================================================================
 local function activateSpinningLariat()
     local character = LocalPlayer.Character
@@ -86,16 +86,13 @@ local function activateSpinningLariat()
 
     local tool = character:FindFirstChild(TOOL_NAME) 
     
-    -- [FIX CRASH] Chỉ tìm trong Balo nếu trên tay không có
     if not tool then
         if backpack then
             local toolInBackpack = backpack:FindFirstChild(TOOL_NAME)
             if toolInBackpack then
                 humanoid:EquipTool(toolInBackpack)
-                -- Không dùng task.wait ở đây để tránh delay loop
             end
         end
-        -- Cập nhật lại biến tool sau khi equip
         tool = character:FindFirstChild(TOOL_NAME)
     end
 
@@ -105,7 +102,6 @@ local function activateSpinningLariat()
 end
 
 local function runKillAura()
-    -- [FIX CRASH] Giảm tần suất set simulation để đỡ lag physics
     sethiddenproperty(LocalPlayer, "SimulationRadius", 112412400000)
     sethiddenproperty(LocalPlayer, "MaxSimulationRadius", 112412400000)
     for _, d in pairs(game.Workspace:GetDescendants()) do
@@ -115,7 +111,6 @@ local function runKillAura()
     end
 end
 
--- [FIX CRASH] Hàm Tween thông minh: Hủy tween cũ trước khi tạo mới
 local function tweenBehind(npc)
     local character = LocalPlayer.Character
     if not character then return end
@@ -123,14 +118,10 @@ local function tweenBehind(npc)
     local enemyRoot = npc:FindFirstChild("HumanoidRootPart")
     if not root or not enemyRoot then return end
     
-    local targetCFrame = enemyRoot.CFrame * CFrame.new(0, 0, 0) -- Bay ra sau lưng 2 studs cho an toàn
+    local targetCFrame = enemyRoot.CFrame * CFrame.new(0, 0, 0) 
     
-    -- Nếu khoảng cách quá gần (< 2 studs) thì không cần Tween để đỡ tốn Ram
-    if (root.Position - targetCFrame.Position).Magnitude < 2 then
-        return
-    end
+    if (root.Position - targetCFrame.Position).Magnitude < 2 then return end
 
-    -- Hủy tween cũ nếu đang chạy
     if activeTween then
         activeTween:Cancel()
         activeTween = nil
@@ -140,10 +131,7 @@ local function tweenBehind(npc)
     activeTween = TweenService:Create(root, tweenInfo, {CFrame = targetCFrame})
     activeTween:Play()
     
-    -- Dọn dẹp biến khi xong
-    activeTween.Completed:Connect(function()
-        activeTween = nil
-    end)
+    activeTween.Completed:Connect(function() activeTween = nil end)
 end
 
 local function getNearestMob()
@@ -254,18 +242,17 @@ while task.wait(0.2) do
     if getgenv().Toggle_G then
         runKillAura()
         
-        -- Logic di chuyển cơ bản khi không trong trạng thái tấn công
         if isTeleportingActive then
             local mob = getNearestMob()
             if mob and mob.Name == LastMobName then
-                -- [CHECK MỚI] Chỉ dịch chuyển nếu thời gian trôi qua < 3.5 giây
+                -- Logic di chuyển trong lúc chờ (dưới 3.5s)
                 if tick() - AttackStartTime < STOP_MOVE_TIME then
                     tweenBehind(mob)
                 end
             else
                 isTeleportingActive = false
                 LastMobName = nil
-                if activeTween then activeTween:Cancel() end -- Dọn dẹp tween
+                if activeTween then activeTween:Cancel() end
             end
         else
             local mob = getNearestMob()
@@ -282,28 +269,40 @@ while task.wait(0.2) do
                     while tick() - startTime < SKILL_DELAY do
                         if not isTeleportingActive or not getgenv().Toggle_G then return end
                         
-                        -- Vẫn cho phép di chuyển trong giai đoạn chờ này (vì < 3.5s)
+                        -- Vẫn di chuyển nếu < 3.5s
                         if tick() - startTime < STOP_MOVE_TIME then
                              local currentMob = getNearestMob()
                              if currentMob then tweenBehind(currentMob) end
                         end
                         
+                        -- Nếu quái hết ngay trong lúc chờ thì thoát luôn để tìm con khác
+                        if not getNearestMob() then
+                            isTeleportingActive = false
+                            return
+                        end
+                        
                         task.wait(0.1)
                     end
 
-                    -- === Giai đoạn 2: SPAM CHIÊU TRONG 3 GIÂY ===
-                    local spamStart = tick()
-                    while tick() - spamStart < SPAM_DURATION do
+                    -- === Giai đoạn 2: SPAM CHIÊU CHO ĐẾN KHI HẾT QUÁI ===
+                    -- Thay đổi ở đây: Dùng vòng lặp while true và thoát khi getNearestMob trả về nil
+                    while true do
                         if not isTeleportingActive or not getgenv().Toggle_G then break end
+                        
+                        -- Kiểm tra xem còn quái nào gần không
+                        local currentMob = getNearestMob()
+                        
+                        -- NẾU KHÔNG CÒN QUÁI TRONG PHẠM VI -> DỪNG ĐÁNH
+                        if not currentMob then
+                            break
+                        end
                         
                         activateSpinningLariat()
                         
-                        -- Kiểm tra: Chỉ di chuyển thêm 0.5s đầu của giai đoạn này
+                        -- Kiểm tra thời gian di chuyển (dừng sau 3.5s tính từ lúc bắt đầu)
                         if tick() - startTime < STOP_MOVE_TIME then
-                            local currentMob = getNearestMob()
-                            if currentMob then tweenBehind(currentMob) end
+                            tweenBehind(currentMob)
                         else
-                            -- Hủy tween nếu còn sót để đứng yên hoàn toàn
                             if activeTween then activeTween:Cancel(); activeTween = nil end
                         end
                         
